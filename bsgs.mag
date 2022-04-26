@@ -1,0 +1,56 @@
+// Baby-Step-Giant-Step Algorithm (for DLP) - Mert Yassi
+clear;
+
+p := NextPrime(Random(2^25));
+F := GF(p);
+a := Random(F);
+b := Random(F);
+
+// Precomputation
+
+m := Ceiling(Sqrt(p - 1));
+
+B1 := []; B2 := [];
+for j := 0 to m - 1 do
+	B1[j+1] := j;
+	B2[j+1] := a^(m * j);
+end for;
+
+ParallelSort(~B2,~B1);
+
+// Main Computation
+
+G1 := []; G2 := [];
+
+for i := 0 to m - 1 do
+	G1[i+1] := i;
+	G2[i+1] := b * a^(-i);
+end for;
+
+ParallelSort(~G2,~G1);
+
+ii := 0; jj := 0; flag := 0;
+for j := 0 to m - 1 do
+	for i := 0 to m - 1 do
+		if B2[j+1] eq G2[i+1] then
+			ii := G1[i+1];
+			jj := B1[j+1];
+			flag := 1;
+			break;
+		end if;
+	end for;
+end for;
+if flag eq 1 then
+	x := m * jj + ii;
+	"\na := ",a;
+	"b := ",b;
+	"a^x := b";
+	"x := ",x;
+	a^x eq b;
+else 
+	"\nm is too small!";
+end if;
+
+
+
+

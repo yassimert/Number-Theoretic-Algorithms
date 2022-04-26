@@ -1,0 +1,208 @@
+/* Supersingular Isogeny Key Exchange for Beginners - Craig Costello */
+clear;
+
+p := 2^4*3^3-1;
+Fp := GF(p);
+Fp2<i> := ExtensionField<Fp,x|x^2+1>;
+
+j:=function(a)
+	return 256*(a^2-3)^3/(a^2-4);
+end function;
+
+iso_2:=function(alpha,x)
+	return x*(alpha*x-1)/(x-alpha);
+end function;
+
+iso_3:=function(beta,x)
+	return (x*(beta*x-1)^2)/(x-beta)^2;
+end function;
+
+doubling:=function(a,x)
+	return ((x^2-1)^2)/(4*x*(x^2+a*x+1));
+end function;
+
+tripling:=function(a,x)
+	return x*(x^4-6*x^2-4*a*x-3)^2/(3*x^4+4*a*x^3+6*x^2-1)^2;
+end function;
+
+get_A_iso2:=function(x)
+	alpha := x; 
+	a := 2*(1-2*alpha^2);
+	Ea := EllipticCurve([0,Fp2!a,0,1,0]);
+	return alpha,a,Ea;
+end function;
+
+get_A_iso3:=function(x,a)
+	beta := x;
+	ad := (a*beta-6*beta^2+6)*beta;
+	Ea := EllipticCurve([0,Fp2!ad,0,1,0]);
+	return beta,ad,Ea;
+end function;
+
+/* MAIN */
+a := 329*i+423;
+a_ := a;
+Ea := EllipticCurve([0,Fp2!a,0,1,0]);
+Ea_ := Ea;
+
+PA := [100*i+248,304*i+199]; QA := [426*i+394,51*i+79]; 
+PB := [358*i+275,410*i+104]; QB := [20*i+185,281*i+239];
+
+/* ALICE's PUBLIC KEY GENERATION */
+kA := 11;
+SA := Ea!PA + kA*Ea!QA; // use three point ladder
+
+PBxd := PB[1]; PByd := PB[2]; 
+QBxd := QB[1]; QByd := QB[2];
+SAxd := SA[1]; SAyd := SA[2];
+
+RAxd := SAxd;
+
+RAxd := doubling(a,RAxd);
+RAxd := doubling(a,RAxd);
+
+temp := RAxd;
+
+RAxd := doubling(a,RAxd);
+
+alpha,a,Ea:=get_A_iso2(RAxd); 
+
+PBxd:=iso_2(alpha,PBxd); QBxd:=iso_2(alpha,QBxd); SAxd:=iso_2(alpha,SAxd); 
+
+/*
+RAxd := SAxd;
+RAxd := doubling(a,RAxd);
+RAxd := doubling(a,RAxd);
+*/
+
+temp:=iso_2(alpha,temp); 
+RAxd := temp;
+
+alpha,a,Ea:=get_A_iso2(RAxd); 
+
+PBxd:=iso_2(alpha,PBxd); QBxd:=iso_2(alpha,QBxd); SAxd:=iso_2(alpha,SAxd); 
+
+RAxd := SAxd;
+
+RAxd := doubling(a,RAxd);
+
+alpha,a,Ea:=get_A_iso2(RAxd); 
+
+PBxd:=iso_2(alpha,PBxd); QBxd:=iso_2(alpha,QBxd); SAxd:=iso_2(alpha,SAxd); 
+
+RAxd := SAxd;
+
+alpha,a,Ea:=get_A_iso2(SAxd); 
+
+PBxd:=iso_2(alpha,PBxd); QBxd:=iso_2(alpha,QBxd);
+
+PByd := 312*i + 71; QByd := 142*i + 421;
+
+PKA := [a, PBxd, PByd, QBxd, QByd];
+
+/* BOB's PUBLIC KEY GENERATION */
+kB := 2;
+SB := Ea_!PB + kB*Ea_!QB; 
+
+PAxd := PA[1]; PAyd := PA[2]; 
+QAxd := QA[1]; QAyd := QA[2];
+SBxd := SB[1]; SByd := SB[2];
+
+RBxd := SBxd;
+
+RBxd := tripling(a_,RBxd);
+RBxd := tripling(a_,RBxd);
+
+beta,a_,Ea_:=get_A_iso3(RBxd,a_); 
+PAxd:=iso_3(beta,PAxd); QAxd:=iso_3(beta,QAxd); SBxd:=iso_3(beta,SBxd); 
+
+RBxd := SBxd;
+
+RBxd := tripling(a_,RBxd);
+
+beta,a_,Ea_:=get_A_iso3(RBxd,a_); 
+PAxd:=iso_3(beta,PAxd); QAxd:=iso_3(beta,QAxd); SBxd:=iso_3(beta,SBxd); 
+
+RBxd := SBxd;
+
+beta,a_,Ea_:=get_A_iso3(RBxd,a_); 
+PAxd:=iso_3(beta,PAxd); QAxd:=iso_3(beta,QAxd);
+
+PAyd := 43*i + 360; QAyd := 322*i + 254;
+
+PKB := [a_, PAxd, PAyd, QAxd, QAyd];
+
+/* ALICE's SHARED SECRET COMPUTATION */
+a := PKB[1];
+Ea := EllipticCurve([0,Fp2!a,0,1,0]);
+SA2 := Ea![PKB[2],PKB[3]] + kA*Ea![PKB[4],PKB[5]]; 
+
+PBxd := PB[1];  PByd := PB[2]; 
+QBxd := QB[1];  QByd := QB[2];
+SAxd := SA2[1]; SAyd := SA2[2];
+
+RAxd := SAxd;
+
+RAxd := doubling(a,RAxd);
+RAxd := doubling(a,RAxd);
+
+temp := RAxd;
+
+RAxd := doubling(a,RAxd);
+
+alpha,a,Ea:=get_A_iso2(RAxd); 
+PBxd:=iso_2(alpha,PBxd); QBxd:=iso_2(alpha,QBxd); SAxd:=iso_2(alpha,SAxd); 
+
+/*
+RAxd := SAxd;
+RAxd := doubling(a,RAxd);
+RAxd := doubling(a,RAxd);
+*/
+
+temp:=iso_2(alpha,temp); 
+RAxd := temp;
+
+alpha,a,Ea:=get_A_iso2(RAxd); 
+PBxd:=iso_2(alpha,PBxd); QBxd:=iso_2(alpha,QBxd); SAxd:=iso_2(alpha,SAxd); 
+
+RAxd := SAxd;
+
+RAxd := doubling(a,RAxd);
+
+alpha,a,Ea:=get_A_iso2(RAxd); 
+PBxd:=iso_2(alpha,PBxd); QBxd:=iso_2(alpha,QBxd); SAxd:=iso_2(alpha,SAxd); 
+
+RAxd := SAxd;
+
+alpha,a,Ea:=get_A_iso2(RAxd); 
+
+/* BOB's SHARED SECRET COMPUTATION */
+a_ := PKA[1];
+Ea_:= EllipticCurve([0,Fp2!a_,0,1,0]); 
+SB2 := Ea_![PKA[2],PKA[3]] + kB*Ea_![PKA[4],PKA[5]]; 
+
+PAxd := PA[1];  PAyd := PA[2]; 
+QAxd := QA[1];  QAyd := QA[2];
+SBxd := SB2[1]; SByd := SB2[2];
+
+RBxd := SBxd;
+
+RBxd := tripling(a_,RBxd);
+RBxd := tripling(a_,RBxd);
+
+beta,a_,Ea_:=get_A_iso3(RBxd,a_); 
+PAxd:=iso_3(beta,PAxd); QAxd:=iso_3(beta,QAxd); SBxd:=iso_3(beta,SBxd); 
+
+RBxd := SBxd;
+
+RBxd := tripling(a_,RBxd);
+
+beta,a_,Ea_:=get_A_iso3(RBxd,a_); 
+PAxd:=iso_3(beta,PAxd); QAxd:=iso_3(beta,QAxd); SBxd:=iso_3(beta,SBxd); 
+
+RBxd := SBxd;
+
+beta,a_,Ea_:=get_A_iso3(RBxd,a_); 
+
+j(a) eq j(a_);
+

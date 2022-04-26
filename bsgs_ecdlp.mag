@@ -1,0 +1,77 @@
+// Baby-Step-Giant-Step Algorithm (for ECDLP) - Mert Yassi
+clear;
+
+p := NextPrime(Random(2^20));
+F := GF(p);
+
+repeat
+	repeat
+		A := Random(F);
+		B := Random(F);
+	until IsEllipticCurve([A,B]);
+	E := EllipticCurve([A,B]);
+until IsPrime(#E);
+
+P := Random(E);
+n := Integers()!Random(F);
+Q := n*P;
+
+// Precomputation
+
+M := Ceiling(Sqrt(p - 1));
+
+B1 := []; B2 := []; B3 := []; BBB:=[];
+for j := 0 to M - 1 do
+	BBB[j+1] := <j, j*P>;
+	B1[j+1] := j;
+	B2[j+1] := j*P;
+end for;
+
+for i := 1 to #B2 do
+	B3[i] := Integers()!B2[i][1];
+end for;
+
+ParallelSort(~B3,~BBB);
+
+// Main Computation
+
+G1 := []; G2 := []; G3 := []; GGG := [];
+
+PP := M*P;
+
+for i := 0 to M - 1 do
+	GGG[i+1] := <i, Q - i*PP>;
+	G1[i+1] := i;
+	G2[i+1] := Q - i*PP;
+end for;
+
+for i := 1 to #G2 do
+	G3[i] := Integers()!G2[i][1];
+end for;
+
+ParallelSort(~G3,~GGG);
+
+ii := 0; jj := 0; flag := 0;
+for j := 0 to M - 1 do
+	for i := 0 to M - 1 do
+		if BBB[j+1][2] eq GGG[i+1][2] then
+			ii := GGG[i+1][1];
+			jj := BBB[j+1][1];
+			flag := 1;
+			break;
+		end if;
+	end for;
+end for;
+if flag eq 1 then
+	x := M * ii + jj;
+	"\nP := ",P; 
+	"Q := ",Q; 
+	"xP := ",x*P; 		
+	x*P eq Q;
+else 
+	"m is too small!";
+end if;
+
+
+
+

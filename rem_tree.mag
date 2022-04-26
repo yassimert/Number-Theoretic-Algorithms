@@ -1,0 +1,48 @@
+// https://facthacks.cr.yp.to/remainder.html
+// Remainder Tree - Mert Yassi
+clear;
+
+producttree := function(X)
+	res := [X];
+	while #X gt 1 do
+		Y := [];
+		if IsOdd(#X) then 
+			for i := 0 to ((#X+1) div 2)-2 do
+				Y[i+1] := X[2*i+1]*X[2*i+2];
+			end for;		
+			Y[(#X+1) div 2] := X[#X];
+		else
+			for i := 0 to ((#X+1) div 2)-1 do
+				Y[i+1] := X[2*i+1]*X[2*i+2];
+			end for;
+		end if;
+		res := Append(res,Y);
+		X := Y;
+	end while;
+	return res;
+end function;
+
+remaindersusingproducttree := function(n,T)
+	res := [n];
+	T := Reverse(T);
+	for j := 1 to #T do
+		Y := [];
+		for i := 0 to #T[j]-1 do
+			t := T[j];
+			Y[i+1] := res[(i div 2)+1] mod t[i+1]; 
+		end for;
+		res := Y;
+	end for;
+	return res;
+end function;
+
+remainders := function(n,X)
+	return remaindersusingproducttree(n,producttree(X));
+end function;
+
+/* MAIN */
+n := 8675309;
+X := [11,13,17,19,23];
+remainders(n,X);
+
+

@@ -1,0 +1,48 @@
+// Pollard's Rho algorithm (for ECDLP) - Mert Yassi
+clear;
+
+L := 4;
+p := 229;
+Fp := GF(p);
+S<X,Y,Z> := ProjectiveSpace(Fp,2);
+C<X,Y,Z> := Curve(S,[Y^2*Z-(X^3+X*Z^2+44*Z^3)]);
+E, CtoE := EllipticCurve(C,C![0,1,0]);
+EtoC := Inverse(CtoE);
+
+H:=function(X)
+	return (Integers()!X[1] mod L) + 1;
+end function;
+
+P := E![5,116]; n := Order(P);
+Q := E![155,166];
+
+a := []; b := []; R := []; 
+a[1] :=  79; a[2] := 206; a[3] := 87;  a[4] := 219;
+b[1] := 163; b[2] := 19;  b[3] := 109; b[4] := 68;
+
+for i := 1 to L do
+	R[i] := a[i]*P + b[i]*Q;
+end for;
+
+cd := 54; dd := 175;
+Xd := cd*P + dd*Q;
+Xdd := Xd; cdd := cd; ddd := dd; 
+j := H(Xd);
+
+repeat
+	j := H(Xd);
+	Xd := Xd + R[j]; cd := (cd + a[j]) mod n; dd := (dd + b[j]) mod n;
+	for i := 1 to 2 do
+		j := H(Xdd);
+		Xdd := Xdd + R[j]; cdd := (cdd + a[j]) mod n; ddd := (ddd + b[j]) mod n;
+	end for;
+until Xd eq Xdd;
+if dd eq ddd then
+	"Failure!";
+else
+	l := (cd-cdd)*Modinv((ddd-dd),n) mod n;
+	l*P eq Q;
+end if;
+
+
+

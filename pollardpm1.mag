@@ -1,0 +1,110 @@
+// Pollard's p-1 Algorithm - Mert Yassi
+clear;
+
+gcd:=function(a,b)
+	while b ne 0 do
+		t:=b; b:=a mod b; a:=t;
+	end while;
+	return a; 
+end function;
+
+mod_exp:=function(a,b,p)
+	res := 1;
+	while b gt 0 do
+		if b mod 2 eq 1 then
+			res := (res*a) mod p;
+		end if;
+		b := b div 2;
+		a := (a*a) mod p;
+	end while;
+	return res;
+end function;
+
+is_coprime:=function(a,b)
+	if gcd(a,b) eq 1 then
+		return true;		
+	else
+		return false;
+	end if;	
+end function;
+
+get_primes:=function(n)
+	primes := []; factorbase := []; k := 1;
+	for i:=2 to n do
+		primes[i] := 1; // make all elements true
+	end for;	
+	
+	for i:=2 to n do
+		if primes[i] eq 1 then
+			j := i;
+			while i*j lt n do
+				primes[i*j] := 0; // mark composites
+				j := j + 1;
+			end while;
+		end if;	
+	end for;
+	
+	for i:=2 to n do
+		if primes[i] eq 1 then
+			factorbase[k] := i; // collect primes
+			k := k + 1;
+		end if;
+	end for;
+
+	return factorbase;
+end function;
+
+
+/**** MAIN ****/
+pp := NextPrime(Random(2^10));
+qq := NextPrime(Random(2^10));
+
+n := pp*qq; // number we want to factor
+printf "n = %o\n\n", n;
+
+B := 5; // smoothness bound
+
+a := 2;
+repeat
+	q := get_primes(B); // get all primes lower than the bound
+	
+	for i:=1 to #q do
+		e := Floor(Log(q[i],B));
+		f := q[i]^e;
+		a := mod_exp(a,f,n);
+	end for;
+
+	p1 := gcd(a-1,n);
+
+	if p1 eq 1 then // p1 = 1, try one more time with larger B
+		loop := 1;
+		B := B + 1; 
+	elif p1 eq n then // p1 = n, pick another a 
+		loop := 1;
+		repeat 
+			a := Random(n); // else choose random a coprime to n
+		until (is_coprime(a,n) eq true) and (a ne 1) and (a ne 2);
+		B := 5; // again start with small B
+	else // a prime factor of n is found
+		loop := 0;
+	end if;
+until loop eq 0;
+
+p2 := n div p1; // find the other factor
+
+printf "p1 = %o\n", p1;
+printf "p2 = %o\n", p2;
+printf "p1*p2 = %o\n\n", p1*p2;
+//Factorization(p1-1);
+//Factorization(p2-1);
+//B;
+
+
+
+
+
+
+
+
+
+

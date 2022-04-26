@@ -1,0 +1,62 @@
+// Pollard's Rho Algorithm (for DLP) - Mert Yassi
+clear;
+
+p := NextPrime(Random(2^25));
+g := Random(p);
+h := Random(p);
+
+xab := function(x,a,b)
+	if x mod 3 eq 0 then
+		x := (x * x) mod p;
+		a := (2 * a) mod (p - 1);
+		b := (2 * b) mod (p - 1); 
+	elif x mod 3 eq 1 then
+		x := (h * x) mod p;
+		a := (a + 1) mod (p - 1);
+	else 
+		x := (g * x) mod p;
+		b := (b + 1) mod (p - 1);
+	end if;
+	return x,a,b;
+end function;
+
+x := 1; a := 0; b := 0;
+X := x; A := a; B := b;
+
+for i := 1 to p - 1 do
+	x,a,b := xab(x,a,b);
+	X,A,B := xab(X,A,B);
+	X,A,B := xab(X,A,B);
+	if x eq X then
+		"x:",x;
+		break;
+	end if;
+end for;
+
+assert (Modexp(h,a,p) * Modexp(g,b,p)) mod p eq x;
+assert (Modexp(h,A,p) * Modexp(g,B,p)) mod p eq x;
+
+m := (a - A) mod (p - 1);
+n := (B - b) mod (p - 1);
+
+d := GCD(m, p - 1);
+assert IsDivisibleBy(n,d);
+
+x0 := Modinv((m div d),((p - 1) div d));
+
+for i:=1 to d do
+	res := (n div d) * x0 + (i - 1) * ((p - 1) div d);
+	if Modexp(g,res,p) eq h then
+		"res:",res;
+		break;
+	end if;
+end for;
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,52 @@
+// Euler Phi - Mert Yassi
+clear;
+
+/* FUNCTIONS */
+gcd:=function(a,b)
+	while b ne 0 do
+		t:=b;
+		b:=a mod b;
+		a:=t;
+	end while;
+	return a; 
+end function;
+
+is_rel_prime:=function(a,b)
+	if gcd(a,b) eq 1 then
+		return true;		
+	else
+		return false;
+	end if;	
+end function;
+
+eulerPhi_slow:=function(a)
+	phi:=1;
+	for i:=2 to a do
+		if is_rel_prime(a,i) eq true then
+			phi:=phi+1;
+		end if;	
+	end for;
+	return phi;
+end function;
+
+eulerPhi_fast:=function(a)
+	p:=Factorization(a);
+	phi:=1;
+	for i:=1 to #p do
+		f:=(p[i][1]^(p[i][2]-1))*(p[i][1]-1);
+		phi:=phi*f;
+	end for;
+	return phi;
+end function;
+
+/* MAIN */
+x:=Random(100000);
+"x=",x;
+"EulerPhi(x)=";
+eulerPhi_slow(x);
+eulerPhi_fast(x);
+EulerPhi(x);
+
+
+
+

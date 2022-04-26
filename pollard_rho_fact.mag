@@ -1,0 +1,29 @@
+// Pollard's Rho algorithm (for integer factorization) - Mert Yassi
+clear;
+
+a := NextPrime(Random(2^20));
+b := NextPrime(Random(2^20));
+n := a*b; 
+
+f := function(x)
+	return (x^2 + 1) mod n;
+end function;
+
+x := 2; y := 2; d := 1;
+
+while d eq 1 do
+	x := f(x); // tortoise
+	y := f(f(y)); // hare
+	d := GCD(Abs(x-y),n);
+end while;
+if d eq n then
+	"Failure!";
+else
+	q := n div d;
+	"\nn :=",n;
+	"n := a*b";
+	"a:",d;	"b:",q;
+	d*q eq n;
+end if;
+
+

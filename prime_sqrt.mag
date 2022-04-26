@@ -1,0 +1,53 @@
+// Square Root Computation (Prime Modulus) - Mert Yassi
+
+gcd:=function(a,b)
+	while b ne 0 do
+		t:=b; b:=a mod b; a:=t;
+	end while;
+	return a; 
+end function;
+
+legendre_symbol:=function(a,p)
+	return a^((p-1) div 2) mod p;
+end function;
+
+// 0 < a < p, (a | p) = 1
+repeat
+	p := NextPrime(Random(2^20));
+	a := Random(2^20);
+until gcd(a,p) eq 1 and a lt p and legendre_symbol(a,p) eq 1;	
+
+printf "p = %o\n",p;
+printf "a = %o\n",a;
+
+// (g | p) = -1
+repeat
+	g := Random(p);
+until gcd(g,p) eq 1 and legendre_symbol(g,p) eq p-1;	
+
+// p - 1 = 2^h * m 
+pp:=Intseq(p-1,2);
+h := 0; i := 1;
+while pp[i] eq 0 do
+	h := h+1; i := i+1;
+end while;
+m := (p-1) div 2^h;
+assert p-1 eq (2^h)*m;
+
+// solve discrete logarithm problem, find x
+x := 0; i := 0;
+while i ne 1 do
+	if a^m mod p eq g^(m*x) mod p then
+		i := 1;
+	else
+		x := x+2;
+	end if;
+end while;
+
+k := g^((m*x) div 2);
+t := (m-1) div 2;
+b := k*a^(-t+p-1) mod p; // a^(p-1) mod p = 1. a^(-t) mod p = a^(-t+p-1) mod p.
+
+printf "%o^2 == %o (mod %o)\n",b,a,p;
+a eq b^2 mod p; 
+

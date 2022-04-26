@@ -1,0 +1,76 @@
+// Chinese Remainder Theorem - Mert Yassi
+
+/* FUNCTIONS */
+gcd:=function(a,b)
+	while b ne 0 do
+		t:=b;
+		b:=a mod b;
+		a:=t;
+	end while;
+	return a; 
+end function;
+
+extended_gcd:=function(a,b)
+	S:=0; s:=1; T:=1; t:=0;
+	while b ne 0 do
+		q:=a div b;
+		at:=b; b:=a-q*b; a:=at;
+		st:=S; S:=s-q*S; s:=st;	
+		tt:=T; T:=t-q*T; t:=tt;
+	end while;
+	return s; // return modular inverse
+end function;
+
+is_rel_prime:=function(a,b)
+	if gcd(a,b) eq 1 then
+		return true;		
+	else
+		return false;
+	end if;	
+end function;
+
+are_pairwise_rel_primes:=function(N)
+	check:=true;
+	for i:=1 to #N do
+		for j:=i+1 to #N do
+			ret:=is_rel_prime(N[i],N[j]);
+			check:=check and ret;
+		end for;
+	end for;
+	return check;	
+end function;
+
+crt:=function(X,N)
+	for i:=1 to #N do
+		printf "x = %o (mod %o)\n",X[i],N[i];
+	end for;
+
+	assert #X eq #N; // check if num of Xs = num of Ns
+
+	ret:=are_pairwise_rel_primes(N);
+	assert ret eq true; // check if all primes are pairwise relatively.
+
+	prod:=1;
+	for i:=1 to #N do
+		prod:=prod*N[i];
+	end for;
+
+	Y:=[]; Z:=[]; sum:=0;
+	for i:=1 to #N do
+		Y[i]:=prod div N[i];
+		Z[i]:=extended_gcd(Y[i],N[i]);
+		sum:=sum+X[i]*Y[i]*Z[i];
+	end for;
+
+	return sum;
+end function;
+
+/* MAIN */
+res:=crt([7,5,3],[9,11,7]);
+"\nx =",res;
+CRT([7,5,3],[9,11,7]);
+
+
+
+
+

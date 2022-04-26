@@ -1,0 +1,130 @@
+//FASTER COMPUTATION OF ISOGENIES OF LARGE PRIME DEGREE (https://eprint.iacr.org/2020/341.pdf) - Mert Yassi 
+clear;
+
+F0:=function(X1,X2)
+  	return (X1-X2)^2;
+end function;
+
+F1:=function(X1,X2,A)
+  	return -2*((X1*X2+1)*(X1+X2)+2*A*X1*X2);
+end function;
+
+F2:=function(X1,X2)
+  	return (X1*X2-1)^2;
+end function;
+
+//Parameters
+l := 1009;
+p := 1000000000000037;
+F := GF(p);
+RR<Z>:=PolynomialRing(F);
+
+A := F!58932052897936;
+E:=EllipticCurve([0,A,0,1,0]);
+repeat
+	P := Random(E) * (#E div l);
+until Order(P) eq l;
+Q := Random(E);
+assert P ne Q;
+alpha:=Q[1];
+
+algo2:=function(m,P,alpha)
+	S:=[]; I:=[]; J:=[]; K:=[];
+	
+	i:=1; j:=1;
+	while j le m do
+		S[i]:=j;	
+		i:=i+1;
+		j:=j+2;
+	end while;
+
+	b:=Floor(Sqrt(m+1)/2);
+	bd:=Floor((m+1)/(4*b));
+
+	I:=[];
+	for i:=0 to bd-1 do
+		I[i+1]:=2*b*(2*i+1);
+	end for;
+
+	J:=[];
+	for j:=0 to b-1 do
+		J[j+1]:=2*j+1;
+	end for;
+
+	K:=[]; j:=1;
+	for i:=4*b*bd+1 to m by 2 do
+		K[j]:=i;
+		j:=j+1;
+	end for;
+
+	//output
+	hS:=1;
+	for i:=1 to #S do
+		hS:=hS*(alpha-(S[i]*P)[1]);
+	end for;
+
+	//1
+	hI:=1;
+	for i:=1 to #I do
+		hI:=hI*(Z-(I[i]*P)[1]);
+	end for;
+
+	//2
+	DJ:=1;
+	for j:=1 to #J do
+		DJ:=DJ*F0(Z,(J[j]*P)[1]);
+	end for;
+
+	//3
+	DetIJ:=Resultant(hI,DJ);
+
+	//4
+	EJ:=1;
+	for j:=1 to #J do
+		EJ:=EJ*(F0(Z,(J[j]*P)[1])*alpha^2+F1(Z,(J[j]*P)[1],A)*alpha+F2(Z,(J[j]*P)[1]));
+	end for;
+
+	//5
+	R:=Resultant(hI,EJ);
+
+	//6
+	hK:=1;
+	for k:=1 to #K do
+		hK:=hK*(alpha-(K[k]*P)[1]);
+	end for;
+
+	//7
+	assert hS eq hK*R/DetIJ;
+	
+	return hK*R/DetIJ;
+end function;
+
+iso_old:=function(l,P,alpha)
+	mul:=1;
+	for s:=1 to l-1 do
+		mul:=mul*(((s*P)[1]*alpha-1)/(alpha-(s*P)[1]));
+	end for;
+	return alpha*mul;
+end function;
+
+iso_new:=function(m,P,alpha)
+	return alpha^l*algo2(m,P,1/alpha)^2/algo2(m,P,alpha)^2;
+end function;
+
+//------------------------------//
+old:=iso_old(l,P,alpha);
+new:=iso_new(l-2,P,alpha);
+
+assert old eq new;
+
+alphadash:=new;
+
+Adash:=-(alphadash+1/alphadash);
+Edash:=EllipticCurve([0,Adash,0,1,0]);
+Edash;
+
+Qdash:=[alphadash,0];
+Edash!Qdash;
+
+
+

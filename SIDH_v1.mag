@@ -1,0 +1,283 @@
+// Supersingular Isogeny Key Exchange for Beginners - Toy Example - Mert Yassi
+clear;
+
+p := 2^4*3^3-1;
+Fp := GF(p);
+Fp2<i> := ExtensionField<Fp,x|x^2+1>;
+
+j:=function(a)
+	return 256*(a^2-3)^3/(a^2-4);
+end function;
+
+iso_2:=function(alpha,x,y,c)
+	phiX := x*(alpha*x-1)/(x-alpha); // f(x)
+	phiY := c*y*(alpha*(x^2-2*alpha*x+1)/(x-alpha)^2); // c*y*f'(x)
+	return phiX, phiY;
+end function;
+
+iso_3:=function(beta,x,y)
+	phiX := (x*(beta*x-1)^2)/(x-beta)^2; // f(x)
+	phiY := beta*y*((beta*x-1)*(beta*x^2+(1-3*beta^2)*x+beta))/(x-beta)^3; // beta*y*f'(x) (why no c?)
+	return phiX, phiY;
+end function;
+
+doubling_x:=function(a,x) // doubling map, x only
+	return ((x^2-1)^2)/(4*x*(x^2+a*x+1));
+end function;
+
+doubling:=function(a,x,y,c) // doubling map
+	dblX := ((x^2-1)^2)/(4*x*(x^2+a*x+1)); // f(x)
+	dblY := c*y*(((x^2-1)*(x^4+2*a*x^3+6*x^2+2*a*x+1))/(4*x^2*(x^2+a*x+1)^2)); // c*y*f'(x)
+	return dblX, dblY; 
+end function;
+
+tripling_x:=function(a,x)
+	return x*(x^4-6*x^2-4*a*x-3)^2/(3*x^4+4*a*x^3+6*x^2-1)^2; // page 5 -> tripling (nominator) not -4ax^3, must be -4ax
+end function;
+
+tripling:=function(a,x,y,beta)
+	tplX := x*(x^4-6*x^2-4*a*x-3)^2/(3*x^4+4*a*x^3+6*x^2-1)^2;
+	tplY :=-(-x^4+6*x^2+4*a*x+3)*(16*x^4*a^2+4*x^7*a+28*x^5*a+28*x^3*a+4*a*x+x^8+28*x^6+6*x^4+28*x^2+1)*y/(3*x^4+4*x^3*a+6*x^2-1)^3;//f'(x) 
+	return tplX, tplY;
+end function;
+
+get_A_iso2:=function(x)
+	alpha := x; // how to get alpha without performing doublings?
+	c := Sqrt(alpha);
+	a := 2*(1-2*alpha^2);
+	Ea := EllipticCurve([0,Fp2!a,0,1,0]);
+	return alpha,c,a,Ea;
+end function;
+
+get_A_iso3:=function(x,a)
+	beta := x; // how to get beta without performing triplings?
+	ad := (a*beta-6*beta^2+6)*beta;
+	Ea := EllipticCurve([0,Fp2!ad,0,1,0]);
+	return beta,ad,Ea;
+end function;
+
+/* MAIN */
+a0_k := 329*i+423; // a0 in key generation
+Ea0_k:=EllipticCurve([0,Fp2!a0_k,0,1,0]); //j(a0); // 87i + 190
+
+PA := [100*i+248,304*i+199]; QA := [426*i+394,51*i+79]; 
+PB := [358*i+275,410*i+104]; QB := [20*i+185,281*i+239];
+
+//Order(Ea0_k!PA); //16
+//Order(Ea0_k!QA); //16
+//Order(Ea0_k!PB); //27 
+//Order(Ea0_k!QB); //27 
+
+/* ALICE's PUBLIC KEY GENERATION */
+kA := 11; // Alice's secret key, between {0,1,...,15}
+
+SA := Ea0_k!PA + kA*Ea0_k!QA; //Order(Ea0!SA); //16
+x := SA[1]; // order = 16
+
+/* Compute phi0 */
+for k:=1 to 3 do
+	x:=doubling_x(a0_k,x); // order = 16 -> 8 -> 4 -> 2
+end for;
+
+alpha1_kA,c1_kA,a1_kA,Ea1_kA:=get_A_iso2(x); //j(a1); // 107
+
+PBxd,PByd:=iso_2(alpha1_kA,PB[1],PB[2],c1_kA); // PBx' = 118i + 85, PBy' = 274i + 150 
+QBxd,QByd:=iso_2(alpha1_kA,QB[1],QB[2],c1_kA); // QBx' = 62i + 124, QBy' = 64i + 269 
+SAxd,SAyd:=iso_2(alpha1_kA,SA[1],SA[2],c1_kA); // SAx' = 36i + 111, SAy' = 175i + 67 
+
+//Order(Ea1_kA![PBxd,PByd]); //27
+//Order(Ea1_kA![QBxd,QByd]); //27
+//Order(Ea1_kA![SAxd,SAyd]); //8
+
+/* Compute phi1 */
+RAxd,RAyd:=doubling(a1_kA,SAxd,SAyd,c1_kA);
+RAxd,RAyd:=doubling(a1_kA,RAxd,RAyd,c1_kA); // RAx' = 7i + 49, RAy' = 0
+
+//Order(Ea1_kA![RAxd,RAyd]); //2
+
+alpha2_kA,c2_kA,a2_kA,Ea2_kA:=get_A_iso2(RAxd); //j(a2_kA); // 344i + 190
+
+PBxd,PByd:=iso_2(alpha2_kA,PBxd,PByd,c2_kA); // PBx' = 274i + 251, PBy' = 115i + 372 (=-(316i+59))
+QBxd,QByd:=iso_2(alpha2_kA,QBxd,QByd,c2_kA); // QBx' = 214i + 94, QBy' = 77i + 238 (=-(354i+193)) 
+SAxd,SAyd:=iso_2(alpha2_kA,SAxd,SAyd,c2_kA); // SAx' = 274i + 374, SAy' = 347i + 354 (=-(84i+77)) 
+
+//Order(Ea2_kA![PBxd,PByd]); //27
+//Order(Ea2_kA![QBxd,QByd]); //27
+//Order(Ea2_kA![SAxd,SAyd]); //4
+
+/* Compute phi2 */
+RAxd,RAyd:=doubling(a2_kA,SAxd,SAyd,c2_kA); // RAx' = 245i + 27, RAy' = 0
+//Order(Ea2![RAxd,RAyd]); //2
+
+alpha3_kA,c3_kA,a3_kA,Ea3_kA:=get_A_iso2(RAxd); //j(a3_kA); // 305i + 65
+
+PBxd,PByd:=iso_2(alpha3_kA,PBxd,PByd,c3_kA); // PBx' = 77i + 209, PBy' = 75i + 79 (=-(356i+352))
+QBxd,QByd:=iso_2(alpha3_kA,QBxd,QByd,c3_kA); // QBx' = 339i + 356, QBy' = 12i + 419 (=-(419i+12)) 
+SAxd,SAyd:=iso_2(alpha3_kA,SAxd,SAyd,c3_kA); // SAx' = 227i + 150, SAy' = 0 
+
+//Order(Ea3_kA![PBxd,PByd]); //27
+//Order(Ea3_kA![QBxd,QByd]); //27
+//Order(Ea3_kA![SAxd,SAyd]); //2
+
+/* Compute phi3 */
+alpha4_kA,c4_kA,a4_kA,Ea4_kA:=get_A_iso2(SAxd); //j(a4_kA); // 222i + 118
+
+PBxd,PByd:=iso_2(alpha4_kA,PBxd,PByd,c4_kA); // PBx' = 142i + 183, PBy' = 119i + 360 (=-(312i+71))
+QBxd,QByd:=iso_2(alpha4_kA,QBxd,QByd,c4_kA); // QBx' = 220i + 314, QBy' = 289i + 10 (=-(142i+421))
+
+// ALice's secret 2^4 isogeny is done here. phiA = (phi3 o phi2 o phi1 o phi0)
+PKA := [a4_kA, PBxd, PByd, QBxd, QByd];
+
+/* BOB's PUBLIC KEY GENERATION */
+kB := 2; // Bob's secret key, between {0,1,...,26}
+
+SB := Ea0_k!PB + kB*Ea0_k!QB; //Order(Ea0_k!SB); //27
+x := SB[1]; // order = 27
+
+/* Compute phi0 */
+for k:=1 to 2 do
+	x:=tripling_x(a0_k,x); // order = 27 -> 9 -> 3
+end for;
+
+beta1_kB,a1_kB,Ea1_kB:=get_A_iso3(x,a0_k); //j(a1_kB); // 106i + 379
+
+PAxd,PAyd:=iso_3(beta1_kB,PA[1],PA[2]); // PAx' = 418i + 155, PAy' = 288i + 331 
+QAxd,QAyd:=iso_3(beta1_kB,QA[1],QA[2]); // QAx' = 159i + 242, QAy' = 310i + 425
+SBxd,SByd:=iso_3(beta1_kB,SB[1],SB[2]); // SBx' = 295i + 256, SBy' = 253i + 64
+
+//Order(Ea1_kB![PAxd,PAyd]); //16
+//Order(Ea1_kB![QAxd,QAyd]); //16
+//Order(Ea1_kB![SBxd,SByd]); //9
+
+/* Compute phi1 */
+RBxd,RByd:=tripling(a1_kB,SBxd,SByd,beta1_kB); // RBx' = 98i + 36, RBy' = 56i + 155
+
+//Order(Ea1_kB![RBxd,RByd]); //3
+
+beta2_kB,a2_kB,Ea2_kB:=get_A_iso3(RBxd,a1_kB); //j(a2_kB); // 325i + 379
+
+PAxd,PAyd:=iso_3(beta2_kB,PAxd,PAyd); // PAx' = 252i + 425, PAy' = 315i + 19 
+QAxd,QAyd:=iso_3(beta2_kB,QAxd,QAyd); // QAx' = 412i + 81, QAy' = 111i + 172
+SBxd,SByd:=iso_3(beta2_kB,SBxd,SByd); // SBx' = 102i + 405, SBy' = 375i + 313
+
+//Order(Ea2_kB![PAxd,PAyd]); //16
+//Order(Ea2_kB![QAxd,QAyd]); //16
+//Order(Ea2_kB![SBxd,SByd]); //3
+
+/* Compute phi2 */ // page 17 -> a3 = 273i + 76, j(Ea3) = 344i + 190 
+beta3_kB,a3_kB,Ea3_kB:=get_A_iso3(SBxd,a2_kB); //j(a3_kB); // 344i + 190
+
+PAxd,PAyd:=iso_3(beta3_kB,PAxd,PAyd); // PAx' = 187i + 226, PAy' = 43i + 360 
+QAxd,QAyd:=iso_3(beta3_kB,QAxd,QAyd); // QAx' = 325i + 415, QAy' = 322i + 254
+
+// Bob's secret 3^3 isogeny is done here. phiB = (phi2 o phi1 o phi0)
+PKB := [a3_kB, PAxd, PAyd, QAxd, QAyd];
+
+/* ALICE's SHARED SECRET COMPUTATION */
+a0_sA := PKB[1]; // a0 in Alice's shared secret computation
+Ea0_sA := EllipticCurve([0,Fp2!a0_sA,0,1,0]);
+SA2 := Ea0_sA![PKB[2],PKB[3]] + kA*Ea0_sA![PKB[4],PKB[5]]; 
+x := SA2[1];
+
+/* Compute phi0 */
+for k:=1 to 3 do
+	x:=doubling_x(a0_sA,x); // order = 16 -> 8 -> 4 -> 2
+end for;
+
+alpha1_sA,c1_sA,a1_sA,Ea1_sA:=get_A_iso2(x); //j(a1_sA); // 364i + 304
+
+PBxd,PByd:=iso_2(alpha1_sA,PKB[2],PKB[3],c1_sA); // PBx' = 268i + 79, PBy' = 319i + 144 
+QBxd,QByd:=iso_2(alpha1_sA,PKB[4],PKB[5],c1_sA); // QBx' = 257i + 428, QBy' = 155i + 319 
+SAxd,SAyd:=iso_2(alpha1_sA,SA2[1],SA2[2],c1_sA); // SAx' = 27i + 290, SAy' = 38i + 316 
+
+//Order(Ea1_sA![PBxd,PByd]); //16
+//Order(Ea1_sA![QBxd,QByd]); //16
+//Order(Ea1_sA![SAxd,SAyd]); //8
+
+/* Compute phi1 */
+RAxd,RAyd:=doubling(a1_sA,SAxd,SAyd,c1_sA);
+RAxd,RAyd:=doubling(a1_sA,RAxd,RAyd,c1_sA); // RAx' = 182i + 365, RAy' = 0
+
+//Order(Ea1_sA![RAxd,RAyd]); //2
+
+alpha2_sA,c2_sA,a2_sA,Ea2_sA:=get_A_iso2(RAxd); //j(a2_sA); // 67
+
+PBxd,PByd:=iso_2(alpha2_sA,PBxd,PByd,c2_sA); // PBx' = 16i + 39, PBy' = 410i + 17
+QBxd,QByd:=iso_2(alpha2_sA,QBxd,QByd,c2_sA); // QBx' = 414i + 144, QBy' = 243i + 245 
+SAxd,SAyd:=iso_2(alpha2_sA,SAxd,SAyd,c2_sA); // SAx' = 408i + 408, SAy' = 406i + 111 
+
+//Order(Ea2_sA![PBxd,PByd]); //16
+//Order(Ea2_sA![QBxd,QByd]); //16
+//Order(Ea2_sA![SAxd,SAyd]); //4
+
+/* Compute phi2 */
+RAxd,RAyd:=doubling(a2_sA,SAxd,SAyd,c2_sA); // RAx' = 115i + 293, RAy' = 0
+//Order(Ea2_sA![RAxd,RAyd]); //2
+
+alpha3_sA,c3_sA,a3_sA,Ea3_sA:=get_A_iso2(RAxd); //j(a3_sA); // 242
+
+PBxd,PByd:=iso_2(alpha3_sA,PBxd,PByd,c3_sA); // PBx' = 83i + 114, PBy' = 364i + 15
+QBxd,QByd:=iso_2(alpha3_sA,QBxd,QByd,c3_sA); // QBx' = 215i + 161, QBy' = 52i + 220
+SAxd,SAyd:=iso_2(alpha3_sA,SAxd,SAyd,c3_sA); // SAx' = 196i, SAy' = 0 
+
+//Order(Ea3_sA![PBxd,PByd]); //16
+//Order(Ea3_sA![QBxd,QByd]); //16
+//Order(Ea3_sA![SAxd,SAyd]); //2
+
+/* Compute phi3 */
+alpha4_sA,c4_sA,a4_sA,Ea4_sA:=get_A_iso2(SAxd); //j(a4_sA); // 234
+
+//PBxd,PByd:=iso_2(alpha4_sA,PBxd,PByd,c4_sA); // PBx' = 385i + 68, PBy' = 413i + 135
+//QBxd,QByd:=iso_2(alpha4_sA,QBxd,QByd,c4_sA); // QBx' = 405i + 382, QBy' = 175i + 325
+
+// ALice's shared secret computation is done here. phiA = (phi3 o phi2 o phi1 o phi0)
+
+/* BOB's SHARED SECRET COMPUTATION */
+a0_sB := PKA[1]; // a0 in Bob's shared secret computation
+Ea0_sB := EllipticCurve([0,Fp2!a0_sB,0,1,0]); // page 19 -> a0 = 142i + 183 must be a0 = 423i + 179
+SB2 := Ea0_sB![PKA[2],PKA[3]] + kB*Ea0_sB![PKA[4],PKA[5]]; 
+x := SB2[1];
+
+/* Compute phi0 */
+for k:=1 to 2 do
+	x:=tripling_x(a0_sB,x); // order = 27 -> 9 -> 3
+end for;
+
+beta1_sB,a1_sB,Ea1_sB:=get_A_iso3(x,a0_sB); //j(a1_sB); // 299i + 315
+
+PAxd,PAyd:=iso_3(beta1_sB,PKA[2],PKA[3]); // PAx' = 102i + 64, PAy' = 31i + 80 
+QAxd,QAyd:=iso_3(beta1_sB,PKA[4],PKA[5]); // QAx' = 177i + 315, QAy' = 291i + 128
+SBxd,SByd:=iso_3(beta1_sB,SB2[1],SB2[2]); // SBx' = 9i + 49, SBy' = 79i + 281
+
+//Order(Ea1_sB![PAxd,PAyd]); //27
+//Order(Ea1_sB![QAxd,QAyd]); //27
+//Order(Ea1_sB![SBxd,SByd]); //9
+
+/* Compute phi1 */
+RBxd,RByd:=tripling(a1_sB,SBxd,SByd,beta1_sB); // RBx' = 370i + 176, RBy' = 295i + 289
+
+//Order(Ea1_sB![RBxd,RByd]); //3
+
+beta2_sB,a2_sB,Ea2_sB:=get_A_iso3(RBxd,a1_sB); //j(a2_sB); // 61
+
+PAxd,PAyd:=iso_3(beta2_sB,PAxd,PAyd); // PAx' = 180i + 390, PAy' = 189i + 47 
+QAxd,QAyd:=iso_3(beta2_sB,QAxd,QAyd); // QAx' = 421i + 91, QAy' = 293i + 219
+SBxd,SByd:=iso_3(beta2_sB,SBxd,SByd); // SBx' = 118i + 248, SBy' = 64i + 30
+
+//Order(Ea2_sB![PAxd,PAyd]); //27
+//Order(Ea2_sB![QAxd,QAyd]); //27
+//Order(Ea2_sB![SBxd,SByd]); //3
+
+/* Compute phi2 */
+beta3_sB,a3_sB,Ea3_sB:=get_A_iso3(SBxd,a2_sB); //j(a3_sB); // 234
+
+//PAxd,PAyd:=iso_3(beta3_sB,PAxd,PAyd); // PAx' = 126i + 350, PAy' = 361i + 23 
+//QAxd,QAyd:=iso_3(beta3_sB,QAxd,QAyd); // QAx' = 103i, QAy' = 64i + 30
+
+// Bob's shared secret computation is done here. phiB = (phi2 o phi1 o phi0)
+
+j(a4_sA) eq j(a3_sB);
+
+
+
+

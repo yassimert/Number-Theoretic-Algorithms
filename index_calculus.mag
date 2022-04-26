@@ -1,0 +1,188 @@
+// Index Calculus Algorithm - Mert Yassi
+clear;
+
+extendedgcd := function(a, b)
+	S := 0; s := 1; T := 1; t := 0;
+	while b ne 0 do
+		q := a div b;
+		at := b; b := a - q * b; a := at;
+		st := S; S := s - q * S; s := st;	
+		tt := T; T := t - q * T; t := tt;
+	end while;
+	return s; // return modular inverse
+end function;
+
+crt := function(X, N)
+	assert #X eq #N; // check if num of Xs = num of Ns
+	prod := 1;
+	for i := 1 to #N do
+		prod := prod * N[i];
+	end for;
+	Y := []; Z := []; sum := 0;
+	for i := 1 to #N do
+		Y[i] := prod div N[i];
+		Z[i] := extendedgcd(Y[i],N[i]);
+		sum := sum + X[i] * Y[i] * Z[i];
+	end for;
+
+	return sum;
+end function;
+
+modexp := function(a, b, p)
+	res := 1;
+	while b gt 0 do
+		if b mod 2 eq 1 then
+			res := (res * a) mod p;
+		end if;
+		b := b div 2;
+		a := (a * a) mod p;
+	end while;
+	return res;
+end function;
+
+getprimes := function(n)
+	primes := []; factorbase := []; k := 1;
+	for i := 2 to n do
+		primes[i] := 1; // make all elements true
+	end for;	
+	for i := 2 to n do
+		if primes[i] eq 1 then
+			j := i;
+			while i * j lt n do
+				primes[i*j] := 0; // mark composites
+				j := j + 1;
+			end while;
+		end if;	
+	end for;
+	for i := 2 to n do
+		if primes[i] eq 1 then
+			factorbase[k] := i; // collect primes
+			k := k + 1;
+		end if;
+	end for;
+	return factorbase;
+end function;
+
+trialdiv := function(n)
+	a := []; b := []; i := 1; j := 1; fl := 0;
+	while (n mod 2) eq 0 do
+		a[j] := 2; b[j] := i; i +:= 1;
+		n := n div 2; fl := 1;	
+	end while;
+	if fl ne 0 then
+		j +:= 1; fl := 0;
+	end if;
+	f := 3; i := 1; 
+	while (f * f le n) or (f eq n) do
+		if (n mod f) eq 0 then
+			a[j] := f; b[j] := i; i +:= 1; fl := 1;
+			n := n div f;
+		else
+			if fl eq 0 then
+				j -:= 1;			
+			end if;
+			f +:= 2; j +:= 1; i := 1; fl := 0;
+		end if;
+	end while;
+	if fl eq 1 then
+		j +:= 1;
+	end if;	
+	if n ne 1 then
+		a[j] := n; b[j] := 1;
+	end if;
+	aa := car<a, b>;
+	return aa;
+end function;
+
+/* --------------------------- MAIN --------------------------- */
+p := NextPrime(Random([50000..100000])); // works with every prime
+f := trialdiv(p-1); 
+
+a := Random(50000);
+repeat
+	a +:= 1;
+until Order(IntegerRing(p)!a) eq p-1;
+b := Random(p-1);
+
+B := getprimes(NextPrime(Isqrt(Isqrt(p)))); rel := #B + 5;
+
+ct := 0; i := 1;
+tarr := []; farr := [];
+while ct lt rel do
+	t := Random([1..p-2]);
+	m := modexp(a, t, p);
+	fac := trialdiv(m);	
+	if fac[1][#fac[1]] le B[#B] then 
+		tarr[i] := t; farr[i] := fac; i +:= 1;
+		ct +:= 1;	
+	end if;
+end while;
+
+arr := []; k := 1;
+for l := 1 to rel do
+	j := 1;
+	for i := 1 to #B do
+		if (farr[l])[1][j] eq B[i] then
+			arr[k] := (farr[l])[2][j]; 
+			if j ne #(farr[l])[1] then
+				j +:= 1;		
+			end if;
+			k +:= 1;
+		else
+			arr[k] := 0; k +:= 1;
+		end if;	
+	end for;
+end for;
+
+sol := Matrix(#f[1],#B,[<i,j,0>:i,j in [1..#f[1]]]);
+for i := 1 to #f[1] do
+	F := IntegerRing(f[1][i]^f[2][i]);
+	M := Matrix(F, rel, #B, arr);
+	V := Vector(F, tarr);
+	S := Solution(Transpose(M),V);
+	for j := 1 to #B do
+		sol[i][j] := S[j];	
+	end for;
+end for;
+
+N := [];
+for i := 1 to #f[1] do
+	N[i] := f[1][i];
+end for;
+
+logs := [];
+for i := 1 to #B do
+	X := []; 
+	for j := 1 to #f[1] do
+		X[j] := sol[j][i];
+	end for;
+	logs[i] := crt(X,N);
+end for;
+
+repeat
+	repeat
+		s := Random(p-1);
+		repeat
+			t := (b * modexp(a, s, p)) mod p;
+			tt := trialdiv(t);
+		until t ne 1;
+	until tt[1][#tt[1]] le B[#B];
+	res := 0; j := 1;
+	for i := 1 to #B do
+		if B[i] eq tt[1][j] then
+			res := res + tt[2][j] * logs[i];
+			if j ne #tt[1] then
+				j +:= 1;
+			end if;
+		end if;	
+	end for;
+	x := (res-s) mod (p-1);
+until modexp(a, x, p) eq b; // if false, then choose a new s until finding a proper one
+
+printf "%o^x == %o (mod %o)\n" ,a, b, p;
+printf "x = %o\n" ,x;
+
+modexp(a, x, p) eq b;
+
+
+

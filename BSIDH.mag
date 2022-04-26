@@ -1,0 +1,377 @@
+// BSIDH toy example - Mert Yassi
+clear;
+p := 2^4*3^3-1;
+Fp := GF(p);
+Fp2<i> := ExtensionField<Fp,x|x^2+1>;
+M := (p+1) div 2; // 2^3 * 3^3
+N := (p-1) div 2; // 5^1 * 43^1
+assert GCD(M,2) eq 2;
+assert GCD(N,2) eq 1;
+
+iso_l_x:=function(l,P,X,CtoE,EtoC)
+	R:=1;
+	for i:=1 to l-1 do
+		XT:=EtoC(i*CtoE(P))[1];
+		R:=R*((X*XT-1)/(X-XT));
+	end for;
+	return X*R;
+end function;
+
+iso_2_y:=function(P,X,Y)
+	XT:=P[1];
+	fd:=XT*(X^2-2*X*XT+1)/(X-XT)^2;
+	return Y*fd;
+end function;
+
+iso_l_y:=function(l,P,X,Y,CtoE,EtoC) 
+	d:=(l-1) div 2;
+	R:=1;
+	for i:=1 to d do
+		XT:=EtoC(i*CtoE(P))[1];
+		R:=R*((X*XT-1)/(X-XT))^2;
+	end for;
+	
+	M:=0;
+	for i:=1 to d do
+		XT:=EtoC(i*CtoE(P))[1];
+		M:=M+((-2*(X*XT-1)*(XT-1)*(XT+1)/(X-XT)^3)/((X*XT-1)/(X-XT))^2);
+	end for;
+	
+	Rd:=R*M;
+	fd:=X*Rd+R;
+
+	return Y*fd;
+end function;
+
+get_A_2iso:=function(P,B)
+	Ad:=(2*(1-2*P[1]^2)); //-P[1]-1/P[1];
+	Bd:=P[1]*B;
+	return Ad,Bd;
+end function;
+
+get_A_oddiso:=function(l,P,A,B,CtoE,EtoC)
+	d:=(l-1) div 2;
+	pi:=1;
+	for i:=1 to d do
+		XT:=EtoC(i*CtoE(P))[1];
+		pi:=pi*XT;
+	end for;
+		
+	sig:=0;
+	for i:=1 to d do
+		XT:=EtoC(i*CtoE(P))[1];
+		sig:=sig+XT;
+	end for;
+	
+	sigt:=0;
+	for i:=1 to d do
+		XT:=EtoC(i*CtoE(P))[1];
+		sigt:=sigt+1/XT;
+	end for;
+	
+	Ad:=(6*sigt-6*sig+A)*pi^2;
+	Bd:=B*pi^2;
+	return Ad,Bd;
+end function;
+
+frob:=function(P)  
+    return [P[1]^p,P[2]^p];
+end function;
+
+j_inv:=function(A)
+	return 256*(A^2-3)^3/(A^2-4);
+end function;
+
+//------------------------------------------------ MAIN ------------------------------------------------
+A := 329*i+423; // #E = (p+1)^2 with this A
+
+repeat
+    B := Random(Fp2);
+until IsSquare(B);
+
+S<X,Y,Z> := ProjectiveSpace(Fp2,2);
+C<X,Y,Z> := Curve(S,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+E, CtoE := EllipticCurve(C,C![0,1,0]);
+EtoC := Inverse(CtoE);
+assert #E eq (p+1)^2;
+assert IsSupersingular(E);
+
+repeat
+    G := Random(Fp2);
+until IsSquare(G) eq false;
+
+Ct<X,Y,Z> := Curve(S,[G*B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+Et, CttoEt := EllipticCurve(Ct,Ct![0,1,0]);
+EttoCt := Inverse(CttoEt);
+assert IsQuadraticTwist(E,Et);
+assert #Et eq (p-1)^2;
+
+repeat 
+	repeat
+		PA:=Random(E);
+	until Order(PA) eq M;
+
+	repeat
+		QA:=Random(E);
+	until Order(QA) eq M and ((M div 2)*QA) eq E![0,0,1];
+
+	SA := Random(M-1);
+	RA := PA+SA*QA;
+	T  := (M div 2)*RA; // point of order 2
+until T[1] ne 0;
+cPA := PA; cQA := QA; cEtoC := EtoC; cCtoE := CtoE; // copies of the points and maps
+
+repeat
+    R := Random(Fp2);
+until IsSquare(-R) eq false;
+
+Fp4<i2> := ExtensionField<Fp2,x|x^2+R>; //DefiningPolynomial(Fp4);
+S4<X,Y,Z> := ProjectiveSpace(Fp4,2);
+j := Sqrt(Fp4!G);
+
+C4<X,Y,Z> := Curve(S4,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+E4, C4toE4 := EllipticCurve(C4,C4![0,1,0]);
+E4toC4 := Inverse(C4toE4);
+
+Ct4<X,Y,Z> := Curve(S4,[G*B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+Et4, Ct4toEt4 := EllipticCurve(Ct4,Ct4![0,1,0]);
+Et4toCt4 := Inverse(Ct4toEt4);
+assert IsQuadraticTwist(E4,Et4);
+assert IsIsomorphic(E4,Et4);
+
+repeat
+    PB := EttoCt(Random(Et));
+    PB := C4![PB[1],j*PB[2]]; // sigma()
+    assert E4toC4(C4toE4(C4!frob(frob(PB))) + C4toE4(PB)) eq C4![0,1,0];
+until Order(C4toE4(PB)) eq N;
+
+repeat
+    QB := EttoCt(Random(Et));
+    QB := C4![QB[1],j*QB[2]]; // sigma()
+    assert E4toC4(C4toE4(C4!frob(frob(QB))) + C4toE4(QB)) eq C4![0,1,0];
+until Order(C4toE4(QB)) eq N;
+cPB := PB; cQB := QB; cE4toC4 := E4toC4; cC4toE4 := C4toE4; cA := A; cB := B; // copies of the points and maps
+
+// ------------------------------------- ALICE's PUBLIC KEY GENERATION -------------------------------------
+
+// 2-iso (2*2*2)-----------
+for i := 1 to 3 do
+	T := (M div 2^i)*RA; T := EtoC(T); RA := EtoC(RA); 
+
+	RAx := iso_l_x(2,T,RA[1],CtoE,EtoC); // x(phi(RA))
+	RAy := iso_2_y(T,RA[1],RA[2]); // y(phi(RA))
+
+	PBx := iso_l_x(2,T,PB[1],CtoE,EtoC); // x(phi(sigma(PB)))
+	PBy := iso_2_y(T,PB[1],PB[2]); // y(phi(sigma(PB)))
+
+	QBx := iso_l_x(2,T,QB[1],CtoE,EtoC); // x(phi(sigma(QB)))
+	QBy := iso_2_y(T,QB[1],QB[2]); // y(phi(sigma(QB)))
+
+	A, B := get_A_2iso(T,B);
+
+	C := Curve(S,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+	E, CtoE := EllipticCurve(C,C![0,1,0]);
+	EtoC := Inverse(CtoE);
+
+	C4 := Curve(S4,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+	E4, C4toE4 := EllipticCurve(C4,C4![0,1,0]);
+	E4toC4 := Inverse(C4toE4);
+
+	RA := C![RAx,RAy]; PB := C4![PBx,PBy]; QB := C4![QBx,QBy];
+	RA := CtoE(RA);
+end for;
+
+// 3-iso (3*3*3)-----------
+for i := 1 to 2 do
+	T := (Order(RA) div 3)*RA; T := EtoC(T); RA := EtoC(RA); 
+
+	RAx := iso_l_x(3,T,RA[1],CtoE,EtoC); // x(phi(RA))
+	RAy := iso_l_y(3,T,RA[1],RA[2],CtoE,EtoC); // y(phi(RA))
+
+	PBx := iso_l_x(3,T,PB[1],CtoE,EtoC); // x(phi(sigma(PB)))
+	PBy := iso_l_y(3,T,PB[1],PB[2],CtoE,EtoC); // y(phi(sigma(PB)))
+
+	QBx := iso_l_x(3,T,QB[1],CtoE,EtoC);// x(phi(sigma(QB)))
+	QBy := iso_l_y(3,T,QB[1],QB[2],CtoE,EtoC); // y(phi(sigma(QB)))
+
+	A, B := get_A_oddiso(3,T,A,B,CtoE,EtoC);
+	
+	C := Curve(S,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+	E, CtoE := EllipticCurve(C,C![0,1,0]);
+	EtoC := Inverse(CtoE);
+	
+	C4 := Curve(S4,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+	E4, C4toE4 := EllipticCurve(C4,C4![0,1,0]);
+	E4toC4 := Inverse(C4toE4);
+
+	RA := C![RAx,RAy]; PB := C4![PBx,PBy]; QB := C4![QBx,QBy];
+	RA := CtoE(RA);
+end for;
+
+RA := EtoC(RA);
+
+PBx := iso_l_x(3,RA,PB[1],CtoE,EtoC);// x(phi(sigma(PB)))
+PBy := iso_l_y(3,RA,PB[1],PB[2],CtoE,EtoC); // y(phi(sigma(PB)))
+
+QBx := iso_l_x(3,RA,QB[1],CtoE,EtoC);// x(phi(sigma(QB)))
+QBy := iso_l_y(3,RA,QB[1],QB[2],CtoE,EtoC); // y(phi(sigma(QB)))
+
+A, B := get_A_oddiso(3,RA,A,B,CtoE,EtoC);
+
+C := Curve(S,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+E, CtoE := EllipticCurve(C,C![0,1,0]);
+EtoC := Inverse(CtoE);
+
+C4 := Curve(S4,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+E4, C4toE4 := EllipticCurve(C4,C4![0,1,0]);
+E4toC4 := Inverse(C4toE4);
+
+PB := C4![PBx,PBy]; QB := C4![QBx,QBy];
+
+PKA := [A, B, PBx, PBy, QBx, QBy]; // Public Key of Alice
+
+// ------------------------------------- BOB's PUBLIC KEY GENERATION -------------------------------------
+
+PB := cC4toE4(cPB); QB := cC4toE4(cQB); 
+repeat
+	SB := Random(N-1);
+	RB := PB+SB*QB;
+	T  := (Order(RB) div 5)*RB; // point of order 5
+until T[1] ne 0;
+
+// 5-iso ------------------
+
+T := cE4toC4(T); RB := cE4toC4(RB); PA := cEtoC(PA); QA := cEtoC(QA); 
+
+RBx := iso_l_x(5,T,RB[1],cC4toE4,cE4toC4); // x(phi(sigma(RB)))
+RBy := iso_l_y(5,T,RB[1],RB[2],cC4toE4,cE4toC4); // y(phi(sigma(RB)))
+
+PAx := iso_l_x(5,T,PA[1],cC4toE4,cE4toC4); // x(phi(PA))
+PAy := iso_l_y(5,T,PA[1],PA[2],cC4toE4,cE4toC4); // y(phi(PA))
+
+QAx := iso_l_x(5,T,QA[1],cC4toE4,cE4toC4);// x(phi(QA))
+QAy := iso_l_y(5,T,QA[1],QA[2],cC4toE4,cE4toC4); // y(phi(QA))
+
+A, B := get_A_oddiso(5,T,cA,cB,cC4toE4,cE4toC4);
+
+C := Curve(S,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+E, CtoE := EllipticCurve(C,C![0,1,0]);
+EtoC := Inverse(CtoE);
+
+C4 := Curve(S4,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+E4, C4toE4 := EllipticCurve(C4,C4![0,1,0]);
+E4toC4 := Inverse(C4toE4);
+
+RB := C4![RBx,RBy]; PA := C![PAx,PAy]; QA := C![QAx,QAy];
+
+// 43-iso ------------------
+
+PAx := iso_l_x(43,RB,PA[1],C4toE4,E4toC4); // x(phi(PA))
+PAy := iso_l_y(43,RB,PA[1],PA[2],C4toE4,E4toC4); // y(phi(PA))
+
+QAx := iso_l_x(43,RB,QA[1],C4toE4,E4toC4);// x(phi(QA))
+QAy := iso_l_y(43,RB,QA[1],QA[2],C4toE4,E4toC4); // y(phi(QA))
+
+A, B := get_A_oddiso(43,RB,A,B,C4toE4,E4toC4);
+
+C := Curve(S,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+E, CtoE := EllipticCurve(C,C![0,1,0]);
+EtoC := Inverse(CtoE);
+
+C4 := Curve(S4,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+E4, C4toE4 := EllipticCurve(C4,C4![0,1,0]);
+E4toC4 := Inverse(C4toE4);
+
+PA := C![PAx,PAy]; QA := C![QAx,QAy];
+
+PKB := [A, B, PAx, PAy, QAx, QAy]; // Public Key of Bob
+
+// ------------------------------------- ALICE's SHARED SECRET COMPUTATION -------------------------------------
+
+A := PKB[1]; B := PKB[2];
+
+C := Curve(S,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+E, CtoE := EllipticCurve(C,C![0,1,0]);
+EtoC := Inverse(CtoE);
+
+PA := C![PKB[3],PKB[4]]; QA := C![PKB[5],PKB[6]];
+PA := CtoE(PA); QA := CtoE(QA);
+
+RA := PA+SA*QA;
+
+// 2-iso (2*2*2)-----------
+for i := 1 to 3 do
+	T := (M div 2^i)*RA; T := EtoC(T); RA := EtoC(RA); 
+	T;
+	RAx := iso_l_x(2,T,RA[1],CtoE,EtoC); // x(phi(RA))
+	RAy := iso_2_y(T,RA[1],RA[2]); // y(phi(RA))
+
+	A, B := get_A_2iso(T,B);
+
+	C := Curve(S,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+	E, CtoE := EllipticCurve(C,C![0,1,0]);
+	EtoC := Inverse(CtoE);
+
+	RA := C![RAx,RAy]; 
+	RA := CtoE(RA);
+end for;
+
+// 3-iso (3*3*3)-----------
+for i := 1 to 2 do
+	T := (Order(RA) div 3)*RA; T := EtoC(T); RA := EtoC(RA); 
+
+	RAx := iso_l_x(3,T,RA[1],CtoE,EtoC); // x(phi(RA))
+	RAy := iso_l_y(3,T,RA[1],RA[2],CtoE,EtoC); // y(phi(RA))
+
+	A, B := get_A_oddiso(3,T,A,B,CtoE,EtoC);
+	
+	C := Curve(S,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+	E, CtoE := EllipticCurve(C,C![0,1,0]);
+	EtoC := Inverse(CtoE);
+
+	RA := C![RAx,RAy]; 
+	RA := CtoE(RA);
+end for;
+
+RA := EtoC(RA);
+
+Alice_A, Alice_B := get_A_oddiso(3,RA,A,B,CtoE,EtoC);
+
+// ------------------------------------- BOB's SHARED SECRET COMPUTATION -------------------------------------
+
+A := PKA[1]; B := PKA[2];
+
+C4 := Curve(S4,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+E4, C4toE4 := EllipticCurve(C4,C4![0,1,0]);
+E4toC4 := Inverse(C4toE4);
+
+PB := C4![PKA[3],PKA[4]]; QB := C4![PKA[5],PKA[6]];
+PB := C4toE4(PB); QB := C4toE4(QB);
+
+RB := PB+SB*QB;
+
+// 5-iso ------------------
+
+T  := (Order(RB) div 5)*RB; // point of order 5
+
+T := E4toC4(T); RB := E4toC4(RB); 
+
+RBx := iso_l_x(5,T,RB[1],C4toE4,E4toC4); // x(phi(sigma(RB)))
+RBy := iso_l_y(5,T,RB[1],RB[2],C4toE4,E4toC4); // y(phi(sigma(RB)))
+
+A, B := get_A_oddiso(5,T,A,B,C4toE4,E4toC4);
+
+C4 := Curve(S4,[B*Y^2*Z-(X^3+A*X^2*Z+X*Z^2)]);
+E4, C4toE4 := EllipticCurve(C4,C4![0,1,0]);
+E4toC4 := Inverse(C4toE4);
+
+RB := C4![RBx,RBy]; 
+
+// 43-iso ------------------
+
+Bob_A, Bob_B := get_A_oddiso(43,RB,A,B,C4toE4,E4toC4);
+
+// are shared secrets equal?
+j_inv(Alice_A) eq j_inv(Bob_A);
+
+
